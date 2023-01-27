@@ -7,7 +7,7 @@ export default class SlackMessage {
     constructor() {
         const {IncomingWebhook} = require('@slack/webhook');
 
-        this.slack = new IncomingWebhook(config.webhookUrl);
+        this.webhook = new IncomingWebhook(config.webhookUrl);
         this.loggingLevel = config.loggingLevel;
         this.messages = [];
         this.errorMessages = [];
@@ -21,23 +21,20 @@ export default class SlackMessage {
         this.errorMessages.push(message);
     }
 
-    sendMessage(message, slackProperties = null) {
-        this.slack.send(Object.assign({
+    async sendMessage(message, slackProperties = null) {
+        const send = Object.assign({
             text: message
-        }, slackProperties), function(err, response) {
-            if (!config.quietMode) {
-                if (err) {
-                    console.log('Unable to send a message to slack');
-                    console.log(response);
-                } else {
-                    console.log(`The following message is send to slack: \n ${message}`);
-                }
-            }
-        });
+        }, slackProperties);
+
+        const slackResponse = await this.webhook.send(send);
+
+        if (!config.quietMode) {
+            console.log({slackResponse: slackResponse});
+        }
     }
 
-    sendTestReport(numFailedTests) {
-        this.sendMessage(
+    async sendTestReport(numFailedTests) {
+        await this.sendMessage(
             this.getTestReportMessage(),
             (numFailedTests > 0 && (this.loggingLevel !== loggingLevels.SUMMARY))
                 ? {

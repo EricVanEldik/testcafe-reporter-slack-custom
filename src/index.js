@@ -15,7 +15,7 @@ module.exports = function() {
     return {
         noColors: true,
 
-        sendMessagesFromUser(userFunctionResponse) {
+        async sendMessagesFromUser(userFunctionResponse) {
             const isArray = Array.isArray(userFunctionResponse);
             const isObject = (userFunctionResponse instanceof Object);
 
@@ -24,10 +24,10 @@ module.exports = function() {
                     ? userFunctionResponse
                     : [userFunctionResponse];
 
-                messages.forEach(({action = 'SEND', message} = {}) => {
+                messages.forEach(async({action = 'SEND', message} = {}) => {
                     if (action && message) {
                         if (action.toUpperCase() === 'SEND') {
-                            this.slack.sendMessage(`${message}\n`);
+                            await this.slack.sendMessage(`${message}\n`);
                         }
                         if (action.toUpperCase() === 'ADD') {
                             this.slack.addMessage(`${message}\n`);
@@ -37,7 +37,7 @@ module.exports = function() {
             }
         },
 
-        reportTaskStart(startTime, userAgents, testCount) {
+        async reportTaskStart(startTime, userAgents, testCount) {
             this.slack = new SlackMessage();
             this.startTime = startTime;
             this.testCount = testCount;
@@ -56,23 +56,23 @@ module.exports = function() {
 
                     this.sendMessagesFromUser(userMessageResponse);
                 } catch (error) {
-                    this.slack.sendMessage(`${startingMessage}\n`);
+                    await this.slack.sendMessage(`${startingMessage}\n`);
                     this.slack.addMessage(defaultTaskStartMessage);
                 }
             } else {
-                this.slack.sendMessage(`${startingMessage}\n`);
+                await this.slack.sendMessage(`${startingMessage}\n`);
                 this.slack.addMessage(defaultTaskStartMessage);
             }
         },
 
-        reportFixtureStart(name, filePath, meta) {
+        async reportFixtureStart(name, filePath, meta) {
             this.currentFixtureName = name;
 
             if (reporterMethods && typeof reporterMethods.reportFixtureStart === 'function') {
                 try {
                     const userMessageResponse = reporterMethods.reportFixtureStart(name, filePath, meta);
 
-                    this.sendMessagesFromUser(userMessageResponse);
+                    await this.sendMessagesFromUser(userMessageResponse);
                 } catch (error) {
                     if (loggingLevel === LoggingLevels.DETAILED) {
                         this.slack.addMessage(`\n${bold(this.currentFixtureName)}`);
@@ -83,12 +83,12 @@ module.exports = function() {
             }
         },
 
-        reportTestDone(name, testRunInfo, meta) {
+        async reportTestDone(name, testRunInfo, meta) {
             if (reporterMethods && typeof reporterMethods.reportTestDone === 'function') {
                 try {
                     const userMessageResponse = reporterMethods.reportTestDone(name, testRunInfo, meta);
 
-                    this.sendMessagesFromUser(userMessageResponse);
+                    await this.sendMessagesFromUser(userMessageResponse);
                 } catch (error) {
                     this.handleTestDone(name, testRunInfo);
                 }
@@ -141,21 +141,21 @@ module.exports = function() {
             this.slack.addErrorMessage(`- ${this.currentFixtureName}\n-- ${testname}\n${errorMessages.join('\n\n')}`);
         },
 
-        reportTaskDone(endTime, passed, warnings, result) {
+        async reportTaskDone(endTime, passed, warnings, result) {
             if (reporterMethods && typeof reporterMethods.reportTaskDone === 'function') {
                 try {
                     const userMessageResponse = reporterMethods.reportTaskDone(endTime, passed, warnings, result);
 
-                    this.sendMessagesFromUser(userMessageResponse);
+                    await this.sendMessagesFromUser(userMessageResponse);
                 } catch (error) {
-                    this.handleReportDone(endTime, passed, warnings, result);
+                    await this.handleReportDone(endTime, passed, warnings, result);
                 }
             } else {
-                this.handleReportDone(endTime, passed, warnings, result);
+                await this.handleReportDone(endTime, passed, warnings, result);
             }
         },
 
-        handleReportDone(endTime, passed, warnings, result) {
+        async handleReportDone(endTime, passed, warnings, result) {
             let summaryStr = '';
             const endTimeFormatted = this.moment(endTime).format('M/D/YYYY h:mm:ss a');
             const durationMs = endTime - this.startTime;
@@ -178,7 +178,7 @@ module.exports = function() {
             const message = `\n\n${finishedStr} ${durationStr} ${summaryStr}`;
 
             this.slack.addMessage(message);
-            this.slack.sendTestReport(this.testCount - passed);
+            await this.slack.sendTestReport(this.testCount - passed);
         }
     };
 };
